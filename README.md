@@ -158,30 +158,32 @@ Create a **simple HTML page** (served by your Express app at `GET /feedback`) co
    ```
 
 3. **Configure Environment Variables:**
-   Copy `.env.example` to `.env` and adjust credentials if needed:
+   Create your own local `.env` file by copying the provided `.env.example` template:
    ```bash
    cp .env.example .env
    ```
-   *Default `.env` configuration:*
+   Open `.env` in any text editor and fill in your local MySQL credentials:
    ```env
    PORT=3000
    NODE_ENV=development
 
+   # Set these to match your local MySQL credentials
    DB_HOST=localhost
    DB_PORT=3306
-   DB_USER=medibook
-   DB_PASSWORD=medibook
+   DB_USER=root
+   DB_PASSWORD=your_mysql_password_here
    DB_NAME=medibook
 
+   # Redis configuration
    REDIS_HOST=127.0.0.1
    REDIS_PORT=6379
    ```
 
 4. **Initialize MySQL Database and Seed Data:**
-   Run the schema and seed scripts using your MySQL client:
+   Run the schema DDL and seed scripts on your local MySQL server (you will be prompted to enter your MySQL password):
    ```bash
-   mysql -u medibook -pmedibook < database/schema.sql
-   mysql -u medibook -pmedibook < database/seed.sql
+   mysql -u root -p < database/schema.sql
+   mysql -u root -p < database/seed.sql
    ```
 
 5. **Start the Web Server:**
