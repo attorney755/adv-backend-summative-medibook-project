@@ -128,3 +128,107 @@ Create a **simple HTML page** (served by your Express app at `GET /feedback`) co
 - A short **viva/demo (10 minutes)** walkthrough.
 
 **Automatic penalties:** SQL injection vector anywhere in the app (−15), secrets committed to the repo (−5), app does not start per README instructions (−10), work the student cannot explain in the video (or at a follow-up viva if called) | Academic integrity referral; affected criteria re-scored at Developing or below |
+
+---
+
+# MediBook Project Implementation Documentation
+
+## Video Walkthrough Link
+- **Walkthrough Video (max 10 minutes):** `[INSERT YOUR VIDEO LINK HERE: e.g. YouTube / Loom / Google Drive]`
+
+---
+
+## 1. System Setup & Running the Application
+
+### Prerequisites
+- **Node.js**: v18.0.0 or higher (built and verified on v26.13.0)
+- **MySQL**: 8.0+
+- **Redis**: 6.0+
+
+### Step-by-Step Setup
+1. **Clone your fork and navigate into the project:**
+   ```bash
+   git clone https://github.com/attorney755/adv-backend-summative-medibook-project.git
+   cd adv-backend-summative-medibook-project
+   ```
+
+2. **Install Node.js dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Configure Environment Variables:**
+   Copy `.env.example` to `.env` and adjust credentials if needed:
+   ```bash
+   cp .env.example .env
+   ```
+   *Default `.env` configuration:*
+   ```env
+   PORT=3000
+   NODE_ENV=development
+
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_USER=medibook
+   DB_PASSWORD=medibook
+   DB_NAME=medibook
+
+   REDIS_HOST=127.0.0.1
+   REDIS_PORT=6379
+   ```
+
+4. **Initialize MySQL Database and Seed Data:**
+   Run the schema and seed scripts using your MySQL client:
+   ```bash
+   mysql -u medibook -pmedibook < database/schema.sql
+   mysql -u medibook -pmedibook < database/seed.sql
+   ```
+
+5. **Start the Web Server:**
+   ```bash
+   npm start
+   ```
+   The Express API server starts on `http://localhost:3000`.
+
+6. **Start the Background Worker Process (Separate Terminal):**
+   ```bash
+   npm run worker
+   ```
+   The dedicated background worker listens for freed slots to promote waitlisted patients and processes notification jobs.
+
+7. **Run Automated Unit Tests:**
+   ```bash
+   npm test
+   ```
+   Executes all 16 Jest unit tests in memory with zero database or Redis dependencies.
+
+---
+
+## 2. Written Technical Justifications
+
+### Part C — API Design & Concurrency Handling Justification
+- **RESTful Resource Grouping:** URL paths are strictly resource-oriented (`/patients`, `/doctors`, `/appointments`, `/reports`, `/feedback`). Standard HTTP verbs match actions (`POST` to create, `GET` to read, `PUT` to update, `DELETE` to cancel/delete).
+- **HTTP Status Codes:**
+  - `200 OK`: Successful retrieval, update, or cancellation.
+  - `201 Created`: Successful creation of a patient, doctor, appointment, or waitlist entry.
+  - `400 Bad Request`: Client-side syntax error or missing mandatory fields.
+  - `404 Not Found`: Unknown resource ID.
+  - `409 Conflict`: Duplicate unique key (e.g. duplicate patient email, appointment slot collision, or attempting to delete a doctor/patient with active appointments).
+  - `422 Unprocessable Entity`: Semantic business-rule violation (e.g. past appointment, outside 09:00–17:00 working hours, not on a 30-minute boundary, or doctor exceeding 12 daily appointments).
+- **Concurrency & Race Condition Handling:** To ensure two patients can never hold the same doctor slot—even under simultaneous requests—we implement a two-tier defense:
+  1. **Application-level pre-check:** `findActiveByDoctorAndSlot()` checks slot availability before attempting creation.
+  2. **Database-level atomic constraint:** A composite unique index `UNIQUE(doctor_id, active_slot)` is enforced at the database engine level (using a virtual generated column `active_slot` that evaluates to `appointment_datetime` when confirmed and `NULL` when cancelled). Even if two concurrent requests race past the application check at the exact same millisecond, MySQL will atomically reject the second insert with `ER_DUP_ENTRY`, which the controller catches and transforms into a clean `409 Conflict` response with an offer to join the waitlist.
+- **Atomic Cancellation & Refunds:** `cancelWithRefund()` executes inside a MySQL transaction with row-level locking (`SELECT ... FOR UPDATE`). This guarantees that updating the status to `'cancelled'` and setting the calculated `refund_amount` succeed or fail together as a single atomic unit.
+
+### Part D — Node.js `fs` Module & Audit Logging Justification
+- **Non-blocking Asynchronous Operations:** All audit logging uses `fs.promises.mkdir()` and `fs.promises.appendFile()`. By avoiding synchronous `*Sync` functions inside request handlers, the Node.js event loop remains unblocked, allowing the server to maintain high throughput and low response latency.
+- **Fault-Tolerant Logging:** The logging utility wraps I/O operations in a non-fatal `try...catch` block. If the filesystem encounters an unexpected error (e.g. permission issue or disk full), the incident is caught and logged to the system error stream, but **never throws an unhandled error to the client**. A logging glitch must never fail an otherwise successful user booking or cancellation.
+
+### Part E — Redis Queues & Background Worker Architecture Justification
+- **Process Decoupling:** In production architectures, CPU-intensive or external I/O tasks (such as SMS/Email dispatching and queue polling) must not run inside the HTTP web server thread. MediBook runs the worker as an independent OS process (`src/workers/worker.js`) via `npm run worker`. If the web server crashes or restarts, queued background jobs remain safely persisted in Redis.
+- **Waitlist Promotion & Failure Recovery Strategy:**
+  - When an appointment is cancelled, the web server pushes an event to `medibook:queue:slot_freed`.
+  - The worker process pops the first waitlisted patient from the Redis FIFO list (`LPOP`).
+  - The worker attempts to promote the patient into a confirmed database booking.
+  - **Failure Recovery Guarantee:** If the promoted booking fails (e.g. database disconnect or unexpected error), the catch block immediately re-queues the patient at the **head of the queue** via `LPUSH` (`queueService.requeueWaitlistedPatient`). This guarantees that a waitlisted patient is **never lost from both the queue and the appointments table**, preserving their priority for the next available opportunity.
+
