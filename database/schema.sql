@@ -46,6 +46,9 @@ CREATE TABLE appointments (
     refund_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     booked_on DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+    -- Virtual column to enforce uniqueness of confirmed appointments while allowing rebooking of cancelled slots
+    active_slot DATETIME GENERATED ALWAYS AS (IF(status = 'confirmed', appointment_datetime, NULL)) VIRTUAL,
+
     -- Foreign Key constraints
     CONSTRAINT fk_appointments_patient
         FOREIGN KEY (patient_id) REFERENCES patients(id)
@@ -57,7 +60,7 @@ CREATE TABLE appointments (
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
-    -- Business Rule: A doctor cannot have two appointments at the same date/time
+    -- Business Rule: A doctor cannot have two active appointments at the same date/time (no double booking)
     CONSTRAINT unique_doctor_datetime
-        UNIQUE (doctor_id, appointment_datetime)
+        UNIQUE (doctor_id, active_slot)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
