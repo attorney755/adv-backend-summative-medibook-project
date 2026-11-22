@@ -3,39 +3,34 @@
 /**
  * Doctor Controller
  * 
- * Handles business logic, input validation, and HTTP responses for Doctors.
- * Exposes full CRUD operations plus the Doctor Statistics endpoint (Part C.4).
- * Architectural Rule: Never executes SQL directly; all operations delegate to doctorModel.
+ * In this controller, I handle all incoming HTTP requests for doctor resources.
+ * I validate each field, compute doctor statistics via advanced SQL queries in doctorModel,
+ * and ensure proper RESTful status codes are returned.
  */
 
 const doctorModel = require('../models/doctorModel');
 
 /**
- * Validates doctor input fields.
- * Follows a step-by-step validation strategy:
- * 1. Validate 'name': required string, trimmed length between 1 and 100 characters.
- * 2. Validate 'specialty': required string, trimmed length between 1 and 100 characters.
- * 3. Validate 'consultation_fee': required positive numeric value (DECIMAL 10,2).
- * 4. Validate 'room': required string, trimmed length between 1 and 20 characters (e.g. 'R-12').
+ * Helper function to validate doctor input payload.
  */
 function validateDoctorInput({ name, specialty, consultation_fee, room }) {
   const errors = [];
 
-  // Step 1: Validate doctor's name
+  // I did this check here to ensure the client provides a doctor name
   if (!name || typeof name !== 'string' || !name.trim()) {
     errors.push('Name is required and must be a non-empty string');
   } else if (name.trim().length > 100) {
     errors.push('Name cannot exceed 100 characters');
   }
 
-  // Step 2: Validate medical specialty
+  // Next, I validated that a medical specialty is provided
   if (!specialty || typeof specialty !== 'string' || !specialty.trim()) {
     errors.push('Specialty is required and must be a non-empty string');
   } else if (specialty.trim().length > 100) {
     errors.push('Specialty cannot exceed 100 characters');
   }
 
-  // Step 3: Validate consultation fee (monetary DECIMAL)
+  // Then, I checked that the consultation fee is a valid positive number
   const fee = parseFloat(consultation_fee);
   if (consultation_fee === undefined || consultation_fee === null || isNaN(fee)) {
     errors.push('Consultation fee is required and must be a valid number');
@@ -43,7 +38,7 @@ function validateDoctorInput({ name, specialty, consultation_fee, room }) {
     errors.push('Consultation fee must be greater than 0');
   }
 
-  // Step 4: Validate room identifier
+  // Next, I ensured that a clinic room identifier is specified
   if (!room || typeof room !== 'string' || !room.trim()) {
     errors.push('Room is required and must be a non-empty string');
   } else if (room.trim().length > 20) {
@@ -55,24 +50,17 @@ function validateDoctorInput({ name, specialty, consultation_fee, room }) {
 
 /**
  * POST /doctors
- * Creates a new doctor.
- * 
- * Flow:
- * - Step 1: Extract payload from request body.
- * - Step 2: Validate all fields (name, specialty, consultation_fee, room).
- * - Step 3: If validation fails, return 400 Bad Request with all error messages.
- * - Step 4: Call doctorModel.create() using parameterized SQL.
- * - Step 5: Return 201 Created with the new doctor record.
+ * Create a new doctor.
  */
 async function createDoctor(req, res, next) {
   try {
-    // Step 1: Extract fields
+    // First, I extracted the doctor fields from the request body
     const { name, specialty, consultation_fee, room } = req.body;
 
-    // Step 2: Validate fields
+    // Next, I validated the inputs to catch missing or invalid values
     const errors = validateDoctorInput({ name, specialty, consultation_fee, room });
     if (errors.length > 0) {
-      // Step 3: Return 400 if validation fails
+      // If validation fails, I returned a 400 Bad Request status with all error messages
       return res.status(400).json({
         status: 'error',
         message: 'Validation failed',
@@ -80,7 +68,7 @@ async function createDoctor(req, res, next) {
       });
     }
 
-    // Step 4: Insert record via model
+    // Then, I saved the new doctor record into MySQL by calling doctorModel.create()
     const doctor = await doctorModel.create({
       name: name.trim(),
       specialty: specialty.trim(),
@@ -88,30 +76,27 @@ async function createDoctor(req, res, next) {
       room: room.trim(),
     });
 
-    // Step 5: Respond with 201 Created
+    // Finally, I returned a 201 Created status with the saved doctor resource
     return res.status(201).json({
       status: 'success',
       data: doctor,
     });
   } catch (err) {
+    // I passed any unexpected server error to the central error middleware
     next(err);
   }
 }
 
 /**
  * GET /doctors
- * Retrieves all registered doctors.
- * 
- * Flow:
- * - Step 1: Fetch all doctor records from doctorModel.
- * - Step 2: Return 200 OK with the array of doctors and total count.
+ * Retrieve all registered doctors.
  */
 async function getAllDoctors(req, res, next) {
   try {
-    // Step 1: Fetch from model
+    // First, I fetched all doctor records from the model
     const doctors = await doctorModel.findAll();
 
-    // Step 2: Send 200 response
+    // Then, I returned a 200 OK status with the results
     return res.status(200).json({
       status: 'success',
       results: doctors.length,
@@ -124,17 +109,11 @@ async function getAllDoctors(req, res, next) {
 
 /**
  * GET /doctors/:id
- * Retrieves a single doctor by ID.
- * 
- * Flow:
- * - Step 1: Parse and validate the ID route parameter.
- * - Step 2: Query the database via doctorModel.findById().
- * - Step 3: If doctor does not exist, return 404 Not Found.
- * - Step 4: If doctor exists, return 200 OK with doctor data.
+ * Retrieve a single doctor by ID.
  */
 async function getDoctorById(req, res, next) {
   try {
-    // Step 1: Validate ID
+    // First, I parsed and validated the doctor ID parameter
     const id = parseInt(req.params.id, 10);
     if (isNaN(id) || id <= 0) {
       return res.status(400).json({
@@ -143,10 +122,10 @@ async function getDoctorById(req, res, next) {
       });
     }
 
-    // Step 2: Query model
+    // Next, I queried the database through doctorModel to find the doctor
     const doctor = await doctorModel.findById(id);
 
-    // Step 3: Check existence
+    // Then, I checked if the doctor exists; if not, I returned 404 Not Found
     if (!doctor) {
       return res.status(404).json({
         status: 'error',
@@ -154,7 +133,7 @@ async function getDoctorById(req, res, next) {
       });
     }
 
-    // Step 4: Return 200 OK
+    // Finally, I returned 200 OK with the doctor details
     return res.status(200).json({
       status: 'success',
       data: doctor,
@@ -166,18 +145,11 @@ async function getDoctorById(req, res, next) {
 
 /**
  * PUT /doctors/:id
- * Updates an existing doctor's details.
- * 
- * Flow:
- * - Step 1: Parse and validate the doctor ID parameter.
- * - Step 2: Check if doctor exists. If not, return 404 Not Found.
- * - Step 3: Validate the updated fields. If invalid, return 400 Bad Request.
- * - Step 4: Call doctorModel.update() to persist changes.
- * - Step 5: Return 200 OK with updated doctor details.
+ * Update an existing doctor.
  */
 async function updateDoctor(req, res, next) {
   try {
-    // Step 1: Validate ID
+    // First, I validated that the ID parameter is a positive integer
     const id = parseInt(req.params.id, 10);
     if (isNaN(id) || id <= 0) {
       return res.status(400).json({
@@ -186,7 +158,7 @@ async function updateDoctor(req, res, next) {
       });
     }
 
-    // Step 2: Check if doctor exists
+    // Next, I checked that the doctor exists before allowing updates
     const existing = await doctorModel.findById(id);
     if (!existing) {
       return res.status(404).json({
@@ -195,7 +167,7 @@ async function updateDoctor(req, res, next) {
       });
     }
 
-    // Step 3: Validate incoming fields
+    // Then, I validated the updated field values sent by the client
     const { name, specialty, consultation_fee, room } = req.body;
     const errors = validateDoctorInput({ name, specialty, consultation_fee, room });
     if (errors.length > 0) {
@@ -206,7 +178,7 @@ async function updateDoctor(req, res, next) {
       });
     }
 
-    // Step 4: Update record in model
+    // Next, I updated the doctor record in the database using the model
     const updated = await doctorModel.update(id, {
       name: name.trim(),
       specialty: specialty.trim(),
@@ -214,7 +186,7 @@ async function updateDoctor(req, res, next) {
       room: room.trim(),
     });
 
-    // Step 5: Return 200 OK
+    // Finally, I returned a 200 OK status with the updated record
     return res.status(200).json({
       status: 'success',
       data: updated,
@@ -226,19 +198,11 @@ async function updateDoctor(req, res, next) {
 
 /**
  * DELETE /doctors/:id
- * Deletes a doctor.
- * 
- * Flow:
- * - Step 1: Parse and validate the ID parameter.
- * - Step 2: Check if doctor exists. If not, return 404 Not Found.
- * - Step 3: Enforce referential integrity: check if the doctor has existing appointment records.
- * - Step 4: If appointments exist, return 409 Conflict (cannot delete doctor with appointments).
- * - Step 5: If no appointments exist, delete the doctor record.
- * - Step 6: Return 200 OK confirming deletion.
+ * Delete a doctor.
  */
 async function deleteDoctor(req, res, next) {
   try {
-    // Step 1: Validate ID
+    // First, I parsed and verified the ID parameter
     const id = parseInt(req.params.id, 10);
     if (isNaN(id) || id <= 0) {
       return res.status(400).json({
@@ -247,7 +211,7 @@ async function deleteDoctor(req, res, next) {
       });
     }
 
-    // Step 2: Check if doctor exists
+    // Next, I ensured that the doctor exists in our database
     const existing = await doctorModel.findById(id);
     if (!existing) {
       return res.status(404).json({
@@ -256,20 +220,20 @@ async function deleteDoctor(req, res, next) {
       });
     }
 
-    // Step 3: Check for linked appointments
+    // I did this check here to ensure we do not delete a doctor who has booked appointments
     const appointmentCount = await doctorModel.countAppointments(id);
     if (appointmentCount > 0) {
-      // Step 4: Reject deletion if foreign keys depend on this record
+      // If appointments exist, I returned 409 Conflict to maintain referential integrity
       return res.status(409).json({
         status: 'error',
         message: `Cannot delete doctor with ${appointmentCount} existing appointment(s)`,
       });
     }
 
-    // Step 5: Delete record
+    // Then, I proceeded to delete the doctor record
     await doctorModel.deleteById(id);
 
-    // Step 6: Return 200 OK
+    // Finally, I returned 200 OK confirming deletion
     return res.status(200).json({
       status: 'success',
       message: 'Doctor deleted successfully',
@@ -282,17 +246,10 @@ async function deleteDoctor(req, res, next) {
 /**
  * GET /doctors/:id/stats
  * Part C.4: Doctor Statistics
- * 
- * Flow:
- * - Step 1: Parse and validate doctor ID.
- * - Step 2: Check if doctor exists. If not, return 404 Not Found.
- * - Step 3: Call doctorModel.getDoctorStats() which computes revenue, upcoming count,
- *           next 7 days counts, and daily utilization % using SQL aggregates.
- * - Step 4: Return 200 OK with the computed statistics.
  */
 async function getDoctorStats(req, res, next) {
   try {
-    // Step 1: Validate ID
+    // First, I validated the doctor ID parameter
     const id = parseInt(req.params.id, 10);
     if (isNaN(id) || id <= 0) {
       return res.status(400).json({
@@ -301,10 +258,10 @@ async function getDoctorStats(req, res, next) {
       });
     }
 
-    // Step 2: Fetch stats computed strictly by SQL aggregates
+    // Next, I retrieved the doctor statistics produced strictly by SQL aggregates in doctorModel
     const stats = await doctorModel.getDoctorStats(id);
 
-    // Step 3: Check if doctor was found
+    // Then, I checked if the doctor was found in the database
     if (!stats) {
       return res.status(404).json({
         status: 'error',
@@ -312,7 +269,7 @@ async function getDoctorStats(req, res, next) {
       });
     }
 
-    // Step 4: Return 200 OK with statistics
+    // Finally, I returned 200 OK with the full statistics payload
     return res.status(200).json({
       status: 'success',
       data: stats,
