@@ -1,0 +1,42 @@
+{
+  "locale": "en-US",
+  "page_title": "MediBook — Course Feedback & Reflection",
+  "heading": "Backend Development — Course Reflection & Feedback",
+  "instructions": "This page documents my personal reflection on the Advanced Backend Development trimester. All questions and answers are dynamically localized.",
+  "date_label": "Today's Date",
+  "lang_selector_label": "Choose Language",
+  "switch_to_french": "Passer en Français",
+  "switch_to_english": "Switch to English",
+  "questions": [
+    {
+      "id": 1,
+      "number": "Question 1",
+      "question": "Which topic in this course did you find most challenging, and why?",
+      "answer": "Managing concurrency and race conditions when multiple patients attempt to book the exact same slot simultaneously was the most challenging topic. Initially, I thought checking for existing slots in JavaScript before inserting would be sufficient. However, I learned that between the check and the insert, another request could slip in. Solving this required understanding database-level atomic constraints (such as composite UNIQUE indexes) and row-level locking (SELECT ... FOR UPDATE) inside MySQL transactions."
+    },
+    {
+      "id": 2,
+      "number": "Question 2",
+      "question": "Describe one concept you understood only after the practical assignments. What made it click?",
+      "answer": "Database transactions and ACID properties truly clicked during the appointment cancellation and refund implementation. Reading about transactions theoretically made sense, but writing code where an appointment status update and a refund record must succeed or fail together as a single atomic unit made the importance of connection.beginTransaction(), commit(), and rollback() concrete and unforgettable."
+    },
+    {
+      "id": 3,
+      "number": "Question 3",
+      "question": "How has your approach to designing databases or APIs changed since the start of the trimester?",
+      "answer": "At the start of the trimester, I used to jump straight into writing code without thorough upfront modeling. Now, I start with strict normalization up to 3NF, drawing clear ER diagrams with cardinalities, and enforcing constraints (PK, FK, UNIQUE, CHECK) at the database engine level. On the API side, I now design strictly around RESTful conventions, proper HTTP status codes (201, 400, 404, 409, 422), and clean separation of concerns where models alone handle SQL."
+    },
+    {
+      "id": 4,
+      "number": "Question 4",
+      "question": "What would you improve about how this course was taught or assessed?",
+      "answer": "The course content and practical projects were very thorough and rewarding. One improvement would be introducing Redis queue architectures and worker processes earlier in the trimester with short hands-on labs, so students have more guided practice building asynchronous background processing pipelines before the final summative."
+    },
+    {
+      "id": 5,
+      "number": "Question 5",
+      "question": "How do you plan to apply what you learned in this course going forward?",
+      "answer": "Going forward, I will apply these skills to build production-grade, scalable backend systems. Specifically, I plan to leverage normalized relational databases with parameterized queries to prevent SQL injection, integrate Redis for caching and asynchronous job queues, and write pure, decoupled business logic that can be easily validated with automated unit tests."
+    }
+  ]
+}

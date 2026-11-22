@@ -1,0 +1,42 @@
+{
+  "locale": "fr-FR",
+  "page_title": "MediBook — Retour sur le Cours & Réflexion",
+  "heading": "Développement Backend — Réflexion et Commentaires sur le Cours",
+  "instructions": "Cette page présente ma réflexion personnelle sur le trimestre de développement backend avancé. Toutes les questions et réponses sont dynamiquement localisées.",
+  "date_label": "Date d'aujourd'hui",
+  "lang_selector_label": "Choisir la langue",
+  "switch_to_french": "Passer en Français",
+  "switch_to_english": "Switch to English",
+  "questions": [
+    {
+      "id": 1,
+      "number": "Question 1",
+      "question": "Quel sujet de ce cours avez-vous trouvé le plus difficile, et pourquoi ?",
+      "answer": "La gestion de la concurrence et des situations de compétition (race conditions) lorsque plusieurs patients tentent de réserver exactement le même créneau simultanément a été le sujet le plus complexe. Au départ, je pensais qu'une vérification préalable en JavaScript avant l'insertion suffisait. J'ai cependant compris qu'entre la vérification et l'insertion, une autre requête pouvait s'immiscer. Pour résoudre ce problème, il a fallu maîtriser les contraintes atomiques de base de données (index UNIQUE composite) et le verrouillage de lignes (SELECT ... FOR UPDATE) au sein de transactions MySQL."
+    },
+    {
+      "id": 2,
+      "number": "Question 2",
+      "question": "Décrivez un concept que vous n'avez compris qu'après les devoirs pratiques. Qu'est-ce qui a déclenché le déclic ?",
+      "answer": "Les transactions de base de données et les propriétés ACID sont véritablement devenues claires lors de l'implémentation de l'annulation et du remboursement des rendez-vous. La théorie était compréhensible, mais devoir coder une opération où le statut du rendez-vous et le montant du remboursement doivent réussir ou échouer ensemble en tant qu'unité atomique a rendu connection.beginTransaction(), commit() et rollback() indispensables et concrets."
+    },
+    {
+      "id": 3,
+      "number": "Question 3",
+      "question": "En quoi votre approche de la conception de bases de données ou d'API a-t-elle changé depuis le début du trimestre ?",
+      "answer": "Au début du trimestre, j'avais tendance à coder immédiatement sans modélisation approfondie. Désormais, je commence par une normalisation stricte jusqu'en 3NF, en traçant des diagrammes entité-association avec cardinalités et en appliquant les contraintes (PK, FK, UNIQUE, CHECK) directement au niveau du moteur MySQL. Pour les API, je conçois selon les normes REST avec des codes d'état appropriés (201, 400, 404, 409, 422) et une stricte séparation des couches où seuls les modèles interagissent avec SQL."
+    },
+    {
+      "id": 4,
+      "number": "Question 4",
+      "question": "Que souhaiteriez-vous améliorer dans la manière dont ce cours a été enseigné ou évalué ?",
+      "answer": "Le contenu du cours et les projets pratiques étaient enrichissants et complets. Une amélioration appréciable serait d'introduire l'architecture des files d'attente Redis et les processus workers plus tôt dans le trimestre avec de courts ateliers guidés, afin d'offrir aux étudiants plus d'expérience pratique sur le traitement d'arrière-plan avant le projet final."
+    },
+    {
+      "id": 5,
+      "number": "Question 5",
+      "question": "Comment envisagez-vous d'appliquer ce que vous avez appris dans ce cours à l'avenir ?",
+      "answer": "À l'avenir, j'appliquerai ces compétences pour concevoir des systèmes backend évolutifs et prêts pour la production. Plus précisément, je prévois d'utiliser des bases de données relationnelles normalisées avec des requêtes paramétrées pour prévenir les injections SQL, d'intégrer Redis pour la mise en cache et les files de tâches asynchrones, et d'écrire une logique métier découplée testable via des tests unitaires automatisés."
+    }
+  ]
+}
