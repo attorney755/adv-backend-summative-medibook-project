@@ -21,6 +21,7 @@ const { validateAppointmentSlot } = require('../utils/slotValidator');
 const { calculateRefund } = require('../utils/refundCalculator');
 const { logAuditEvent } = require('../utils/auditLogger');
 const { MAX_DAILY_APPOINTMENTS } = require('../config/constants');
+const queueService = require('../services/queueService');
 
 /**
  * Formats a Date object or ISO string to MySQL DATETIME format (YYYY-MM-DD HH:MM:SS)
@@ -161,6 +162,24 @@ async function bookAppointment(req, res, next) {
       amount_paid: appointment.amount_paid,
     });
 
+    // Then, I enqueued a confirmation notification job into Redis for the worker process (Part E)
+    try {
+      await queueService.enqueueNotification({
+        appointment_id: appointment.id,
+        patient_id: appointment.patient_id,
+        patient_name: patient.name,
+        patient_email: patient.email,
+        patient_phone: patient.phone,
+        doctor_id: appointment.doctor_id,
+        doctor_name: doctor.name,
+        appointment_datetime: mysqlDatetime,
+        room: doctor.room,
+        amount_paid: appointment.amount_paid,
+      });
+    } catch (queueErr) {
+      console.error('[Notification Queue Error] Failed to enqueue job:', queueErr.message);
+    }
+
     // Finally, I returned a 201 Created status with the confirmed appointment details
     return res.status(201).json({
       status: 'success',
@@ -229,6 +248,16 @@ async function cancelAppointment(req, res, next) {
       refund_percentage: refundDetails.refundPercentage,
       refund_amount: refundDetails.refundAmount,
     });
+
+    // Next, I published a slot_freed event to Redis so the background worker can promote waitlisted patients (Part E)
+    try {
+      await queueService.enqueueSlotFreed(
+        appointment.doctor_id,
+        appointment.appointment_datetime
+      );
+    } catch (queueErr) {
+      console.error('[Waitlist Queue Error] Failed to publish slot freed event:', queueErr.message);
+    }
 
     // Finally, I returned a 200 OK status detailing the cancellation and computed refund
     return res.status(200).json({
@@ -312,9 +341,93 @@ async function getAppointmentById(req, res, next) {
   }
 }
 
+/**
+ * POST /appointments/waitlist
+ * Adds a patient to the Redis waitlist queue for an unavailable slot or fully-booked doctor day (Part E).
+ */
+async function joinWaitlist(req, res, next) {
+  try {
+    // First, I extracted the waitlist request payload
+    const { patient_id, doctor_id, appointment_datetime } = req.body;
+
+    const parsedPatientId = parseInt(patient_id, 10);
+    const parsedDoctorId = parseInt(doctor_id, 10);
+
+    if (isNaN(parsedPatientId) || parsedPatientId <= 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Valid patient_id is required',
+      });
+    }
+
+    if (isNaN(parsedDoctorId) || parsedDoctorId <= 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Valid doctor_id is required',
+      });
+    }
+
+    // Next, I verified that the patient exists
+    const patient = await patientModel.findById(parsedPatientId);
+    if (!patient) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Patient with ID ${parsedPatientId} not found`,
+      });
+    }
+
+    // Then, I verified that the doctor exists
+    const doctor = await doctorModel.findById(parsedDoctorId);
+    if (!doctor) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Doctor with ID ${parsedDoctorId} not found`,
+      });
+    }
+
+    // Next, I validated that the requested slot is a valid future working hour slot
+    const slotCheck = validateAppointmentSlot(appointment_datetime);
+    if (!slotCheck.isValid) {
+      return res.status(422).json({
+        status: 'error',
+        message: slotCheck.error,
+      });
+    }
+
+    const mysqlDatetime = toMysqlDatetime(slotCheck.parsedDate);
+
+    // Then, I pushed the patient onto the Redis waitlist queue using queueService
+    const result = await queueService.addToWaitlist(parsedDoctorId, mysqlDatetime, {
+      patient_id: parsedPatientId,
+      patient_name: patient.name,
+      patient_email: patient.email,
+      patient_phone: patient.phone,
+      doctor_name: doctor.name,
+      consultation_fee: doctor.consultation_fee,
+    });
+
+    // Finally, I returned a 201 Created status confirming their spot on the waitlist
+    return res.status(201).json({
+      status: 'success',
+      message: 'Successfully added to appointment waitlist',
+      data: {
+        waitlist_position: result.position,
+        doctor_id: parsedDoctorId,
+        doctor_name: doctor.name,
+        appointment_datetime: mysqlDatetime,
+        patient_id: parsedPatientId,
+        patient_name: patient.name,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   bookAppointment,
   cancelAppointment,
   getAllAppointments,
   getAppointmentById,
+  joinWaitlist,
 };
