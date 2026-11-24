@@ -134,7 +134,7 @@ Create a **simple HTML page** (served by your Express app at `GET /feedback`) co
 # MediBook Project Implementation Documentation
 
 ## Video Walkthrough Link
-- **Walkthrough Video (max 10 minutes):** [Watch MediBook Video Walkthrough (Recording 11-24 at 16.05.mp4)](https://byupathwayworldwideprod-my.sharepoint.com/:v:/g/personal/aniyigaba_byupathway_edu/IQD6v6Cg7UzXQoa2xdk8iGIPAYXdznkA6SKI0AqgnXCSzDw?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=dZZhos)
+- **Walkthrough Video:** [Watch MediBook Video Walkthrough (Recording 11-24 at 16.05.mp4)](https://byupathwayworldwideprod-my.sharepoint.com/:v:/g/personal/aniyigaba_byupathway_edu/IQD6v6Cg7UzXQoa2xdk8iGIPAYXdznkA6SKI0AqgnXCSzDw?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=dZZhos)
 
 ---
 
