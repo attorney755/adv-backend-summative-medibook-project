@@ -1,0 +1,380 @@
+### MediBook API — Full Test Suite
+### HOW TO USE:
+###   1. Install "REST Client" extension in VS Code (by Huachao Mao)
+###   2. Make sure your server is running: npm start
+###   3. Click "Send Request" above any request block to run it
+###   4. The response appears in a split panel on the right
+
+@baseUrl = http://localhost:3000
+
+###############################################################
+# SECTION 1 — UNIT TESTS
+# Run this in your terminal (not here):
+#   npm test
+# Expected: 16/16 passed
+###############################################################
+
+
+###############################################################
+# SECTION 2 — PATIENT CRUD
+###############################################################
+
+### 2-A: Get All Patients
+# Expected: 200 OK — list of 4 patients
+GET {{baseUrl}}/patients
+
+###
+
+### 2-B: Get Single Patient (exists)
+# Expected: 200 OK — Ama Mensah
+GET {{baseUrl}}/patients/1
+
+###
+
+### 2-C: Get Patient (not found)
+# Expected: 404 Not Found — { "message": "Patient not found" }
+GET {{baseUrl}}/patients/9999
+
+###
+
+### 2-D: Create Patient — Validation Error (empty name, bad email, missing phone)
+# Expected: 400 Bad Request — { "errors": [...] }
+POST {{baseUrl}}/patients
+Content-Type: application/json
+
+{
+  "name": "",
+  "email": "not-an-email"
+}
+
+###
+
+### 2-E: Create Patient — Duplicate Email
+# Expected: 409 Conflict — email already belongs to Ama Mensah
+POST {{baseUrl}}/patients
+Content-Type: application/json
+
+{
+  "name": "Test Patient",
+  "email": "ama@mail.com",
+  "phone": "0200-000-001"
+}
+
+###
+
+
+
+### 2-F: Create Patient — SUCCESS
+# Expected: 201 Created
+POST {{baseUrl}}/patients
+Content-Type: application/json
+
+{
+  "name": "Yaw Darko",
+  "email": "yaw@mail.com",
+  "phone": "0244-777-888"
+}
+
+###
+
+
+
+
+### 2-G: Update Patient
+# Expected: 200 OK — updated name and phone
+PUT {{baseUrl}}/patients/5
+Content-Type: application/json
+
+{
+  "name": "Yaw Darko Jnr",
+  "email": "yaw@mail.com",
+  "phone": "0244-777-999"
+}
+
+###
+
+
+
+
+
+### 2-H: Delete Patient — Has Appointments (should be BLOCKED)
+# Expected: 409 Conflict — cannot delete patient with existing appointments
+DELETE {{baseUrl}}/patients/1
+
+###
+
+### 2-I: Delete Patient — Clean (no appointments, use id from 2-F)
+# Expected: 200 OK — { "message": "Patient deleted successfully" }
+DELETE {{baseUrl}}/patients/5
+
+
+###############################################################
+# SECTION 3 — DOCTOR CRUD + STATS
+###############################################################
+
+### 3-A: Get All Doctors
+# Expected: 200 OK — 3 doctors
+GET {{baseUrl}}/doctors
+
+###
+
+### 3-B: Get Single Doctor (Dr. Osei — zero appointments)
+# Expected: 200 OK — General Practice, R-05
+GET {{baseUrl}}/doctors/3
+
+###
+
+### 3-C: Create Doctor — Validation Error
+# Expected: 400 Bad Request
+POST {{baseUrl}}/doctors
+Content-Type: application/json
+
+{
+  "name": "",
+  "specialty": "Cardiology"
+}
+
+###
+
+
+
+
+
+### 3-D: Create Doctor — SUCCESS 
+# Expected: 201 Created 
+POST {{baseUrl}}/doctors
+Content-Type: application/json
+
+{
+  "name": "Dr. Agyei",
+  "specialty": "Cardiology",
+  "consultation_fee": 200,
+  "room": "R-07"
+}
+
+
+
+###
+
+### 3-E: Doctor Stats — Dr. Osei (zero appointments) 
+# Expected: 200 OK — total_revenue: 0, upcoming_appointments: 0
+GET {{baseUrl}}/doctors/3/stats
+
+
+
+
+
+
+
+###
+
+### 3-F: Doctor Stats — Dr. Boateng (10 appointments in seed data)
+# Expected: 200 OK — total_revenue: 1500.00, upcoming_appointments: 10
+GET {{baseUrl}}/doctors/1/stats
+
+###
+
+### 3-G: Update Doctor (use id from 3-D, default 4)
+# Expected: 200 OK
+PUT {{baseUrl}}/doctors/4
+Content-Type: application/json
+
+{
+  "name": "Dr. Agyei Senior",
+  "specialty": "Cardiology",
+  "consultation_fee": 220,
+  "room": "R-07"
+}
+
+###
+
+### 3-H: Delete Doctor (no appointments)
+# Expected: 200 OK — { "message": "Doctor deleted successfully" }
+DELETE {{baseUrl}}/doctors/4
+
+
+###############################################################
+# SECTION 4 — APPOINTMENT BOOKING BUSINESS RULES
+###############################################################
+
+### 4-A: Book Appointment — PAST DATE (rejected)
+# Expected: 422 Unprocessable Entity — "Appointment must be in the future"
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+
+{
+  "patient_id": 1,
+  "doctor_id": 2,
+  "appointment_datetime": "2025-01-10 09:00:00",
+  "amount_paid": 100
+}
+
+###
+
+### 4-B: Book Appointment — BAD TIME BOUNDARY (09:15 is not a 30-min slot)
+# Expected: 422 — "Appointments must be on 30-minute boundaries"
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+
+{
+  "patient_id": 1,
+  "doctor_id": 2,
+  "appointment_datetime": "2027-03-15 09:15:00",
+  "amount_paid": 100
+}
+
+###
+
+### 4-C: Book Appointment — OUTSIDE WORKING HOURS (17:00 is closed)
+# Expected: 422 — "Appointments must be between 09:00 and 16:30"
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+
+{
+  "patient_id": 1,
+  "doctor_id": 2,
+  "appointment_datetime": "2027-03-15 17:00:00",
+  "amount_paid": 100
+}
+
+###
+
+### 4-D: Book Appointment — BEFORE OPENING (08:30)
+# Expected: 422 — "Appointments must be between 09:00 and 16:30"
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+
+{
+  "patient_id": 1,
+  "doctor_id": 2,
+  "appointment_datetime": "2027-03-15 08:30:00",
+  "amount_paid": 100
+}
+
+###
+
+### 4-E: Book Appointment — VALID  (note the id returned — you'll cancel it in Section 5)
+# Expected: 201 Created — status: "confirmed"
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+
+{
+  "patient_id": 1,
+  "doctor_id": 2,
+  "appointment_datetime": "2027-03-15 09:00:00",
+  "amount_paid": 100
+}
+
+###
+
+### 4-F: Book SAME SLOT again — DOUBLE BOOKING BLOCKED 
+# Expected: 409 Conflict — { "message": "This slot is already booked", "waitlist_available": true }
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+
+{
+  "patient_id": 2,
+  "doctor_id": 2,
+  "appointment_datetime": "2027-03-15 09:00:00",
+  "amount_paid": 100
+}
+
+
+###############################################################
+# SECTION 5 — CANCEL + REFUND
+###############################################################
+
+### 5-A: Cancel Appointment — FULL REFUND (>48h notice)
+# Expected: 200 OK — refund_percentage: 100, policy: "Full refund..."
+DELETE {{baseUrl}}/appointments/13
+
+
+
+### 6-1: Book a fresh slot with Patient 1
+# Expected: 201 Created (We use doctor_id: 2 so Dr. Osei / id: 3 stays at 0 appointments!)
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+
+{
+  "patient_id": 1,
+  "doctor_id": 2,
+  "appointment_datetime": "2027-06-10 10:00:00",
+  "amount_paid": 100
+}
+
+###
+
+### 6-2: Try SAME slot with Patient 2 — BLOCKED
+# Expected: 409 — { "message": "This slot is already booked", "waitlist_available": true }
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+
+{
+  "patient_id": 2,
+  "doctor_id": 2,
+  "appointment_datetime": "2027-06-10 10:00:00",
+  "amount_paid": 100
+}
+
+###
+
+### 6-3: Patient 2 Joins Waitlist 
+# Expected: 201 Created — { "waitlist_position": 1, ... }
+POST {{baseUrl}}/appointments/waitlist
+Content-Type: application/json
+
+{
+  "patient_id": 2,
+  "doctor_id": 2,
+  "appointment_datetime": "2027-06-10 10:00:00"
+}
+
+###
+
+### 6-4: Cancel Patient 1's Appointment 
+
+DELETE {{baseUrl}}/appointments/14
+
+###
+
+### 6-5: Verify Patient 2 was promoted — now has a confirmed appointment
+# Look for patient_id:2, doctor_id:2, 2027-06-10 10:00:00, status:"confirmed"
+GET {{baseUrl}}/appointments
+
+
+###############################################################
+# SECTION 7 — REPORTS
+###############################################################
+
+### 7-A: Doctors Report — Dr. Osei should show 0 appointments 
+# Expected: 200 OK — all 3 doctors, Dr. Osei: total_appointments: 0, total_revenue: "0.00"
+GET {{baseUrl}}/reports/doctors
+
+###
+
+### 7-B: Busy Days Report — Dr. Boateng at 83.33% capacity 
+# Expected: 200 OK — Dr. Boateng on 2026-08-10, confirmed_count:10, capacity_percentage:"83.33"
+GET {{baseUrl}}/reports/busy-days
+
+
+###############################################################
+# SECTION 8 — FEEDBACK / i18n PAGE
+# Open these in your BROWSER (Chrome/Firefox), not here:
+#
+#   English:  http://localhost:3000/feedback
+#   French:   http://localhost:3000/feedback?lang=fr
+#   Fallback: http://localhost:3000/feedback?lang=xyz  (shows English)
+###############################################################
+
+### 8-A: Feedback page (English) — open in browser instead, but you can preview raw HTML here
+GET {{baseUrl}}/feedback
+
+###
+
+### 8-B: Feedback page (French)
+GET {{baseUrl}}/feedback?lang=fr
+
+###
+
+### 8-C: Feedback page (unsupported lang — falls back to English)
+GET {{baseUrl}}/feedback?lang=xyz
